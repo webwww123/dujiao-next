@@ -171,6 +171,77 @@ func TestCreatePaymentWalletFullAmountCreatesPaymentRecord(t *testing.T) {
 	}
 }
 
+func TestCreatePaymentZeroAmountMarksOrderPaidWithoutChannel(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	now := time.Now()
+
+	order := &models.Order{
+		OrderNo:                 "DJTESTFREEPAY001",
+		UserID:                  1,
+		Status:                  constants.OrderStatusPendingPayment,
+		Currency:                "CNY",
+		OriginalAmount:          models.NewMoneyFromDecimal(decimal.Zero),
+		DiscountAmount:          models.NewMoneyFromDecimal(decimal.Zero),
+		PromotionDiscountAmount: models.NewMoneyFromDecimal(decimal.Zero),
+		TotalAmount:             models.NewMoneyFromDecimal(decimal.Zero),
+		WalletPaidAmount:        models.NewMoneyFromDecimal(decimal.Zero),
+		OnlinePaidAmount:        models.NewMoneyFromDecimal(decimal.Zero),
+		RefundedAmount:          models.NewMoneyFromDecimal(decimal.Zero),
+		CreatedAt:               now,
+		UpdatedAt:               now,
+	}
+	if err := db.Create(order).Error; err != nil {
+		t.Fatalf("create order failed: %v", err)
+	}
+
+	result, err := svc.CreatePayment(CreatePaymentInput{
+		OrderID: order.ID,
+	})
+	if err != nil {
+		t.Fatalf("create zero amount payment failed: %v", err)
+	}
+	if !result.OrderPaid {
+		t.Fatalf("expected order_paid=true")
+	}
+	if result.Payment != nil {
+		t.Fatalf("expected response payment to be nil for zero amount payment")
+	}
+	if !result.WalletPaidAmount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("wallet_paid_amount want 0 got %s", result.WalletPaidAmount.String())
+	}
+	if !result.OnlinePayAmount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("online_pay_amount want 0 got %s", result.OnlinePayAmount.String())
+	}
+
+	var payment models.Payment
+	if err := db.Where("order_id = ?", order.ID).First(&payment).Error; err != nil {
+		t.Fatalf("zero amount payment record not found: %v", err)
+	}
+	if payment.ChannelID != 0 {
+		t.Fatalf("channel_id want 0 got %d", payment.ChannelID)
+	}
+	if payment.Status != constants.PaymentStatusSuccess {
+		t.Fatalf("payment status want %s got %s", constants.PaymentStatusSuccess, payment.Status)
+	}
+	if !payment.Amount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("payment amount want 0 got %s", payment.Amount.String())
+	}
+	if payment.PaidAt == nil {
+		t.Fatalf("zero amount payment should set paid_at")
+	}
+
+	var refreshedOrder models.Order
+	if err := db.First(&refreshedOrder, order.ID).Error; err != nil {
+		t.Fatalf("reload order failed: %v", err)
+	}
+	if refreshedOrder.Status != constants.OrderStatusPaid {
+		t.Fatalf("order status want %s got %s", constants.OrderStatusPaid, refreshedOrder.Status)
+	}
+	if refreshedOrder.PaidAt == nil {
+		t.Fatalf("order should set paid_at")
+	}
+}
+
 func TestExpireWalletRechargePaymentPendingToExpired(t *testing.T) {
 	svc, db := setupPaymentServiceWalletTest(t)
 	payment, recharge := createWalletRechargeFixture(t, db, constants.PaymentStatusPending, constants.WalletRechargeStatusPending)

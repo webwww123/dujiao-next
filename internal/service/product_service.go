@@ -201,7 +201,7 @@ func (s *ProductService) Create(input CreateProductInput) (*models.Product, erro
 	}
 
 	priceAmount := input.PriceAmount.Round(2)
-	if len(input.SKUs) == 0 && priceAmount.LessThanOrEqual(decimal.Zero) {
+	if len(input.SKUs) == 0 && priceAmount.LessThan(decimal.Zero) {
 		return nil, ErrProductPriceInvalid
 	}
 
@@ -289,7 +289,7 @@ func (s *ProductService) Create(input CreateProductInput) (*models.Product, erro
 // Update 更新商品
 func (s *ProductService) Update(id string, input CreateProductInput) (*models.Product, error) {
 	priceAmount := input.PriceAmount.Round(2)
-	if len(input.SKUs) == 0 && priceAmount.LessThanOrEqual(decimal.Zero) {
+	if len(input.SKUs) == 0 && priceAmount.LessThan(decimal.Zero) {
 		return nil, ErrProductPriceInvalid
 	}
 	product, err := s.repo.GetByID(id)
@@ -541,7 +541,7 @@ func normalizeProductSKUInputs(inputs []ProductSKUInput, fulfillmentType string,
 		seenCode[codeKey] = struct{}{}
 
 		priceAmount := input.PriceAmount.Round(2)
-		if priceAmount.LessThanOrEqual(decimal.Zero) {
+		if priceAmount.LessThan(decimal.Zero) {
 			return nil, decimal.Zero, 0, ErrProductPriceInvalid
 		}
 		costPriceAmount := input.CostPriceAmount.Round(2)

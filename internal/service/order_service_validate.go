@@ -125,7 +125,7 @@ func (s *OrderService) buildOrderResult(input orderCreateParams) (*orderBuildRes
 			promotionDiscountAmount = promotionDiscountAmount.Add(promotionDiscount).Round(2)
 		}
 
-		if unitPriceAmount.LessThanOrEqual(decimal.Zero) || productCurrency == "" {
+		if unitPriceAmount.LessThan(decimal.Zero) || productCurrency == "" {
 			return nil, ErrProductPriceInvalid
 		}
 
@@ -253,7 +253,7 @@ func (s *OrderService) buildOrderResult(input orderCreateParams) (*orderBuildRes
 		}
 		totalAmount = totalAmount.Add(planTotal).Round(2)
 	}
-	if totalAmount.LessThanOrEqual(decimal.Zero) {
+	if totalAmount.LessThan(decimal.Zero) {
 		return nil, ErrInvalidOrderAmount
 	}
 

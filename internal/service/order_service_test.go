@@ -153,7 +153,7 @@ func TestCanCompleteParentOrderRejectInvalidChild(t *testing.T) {
 	}
 }
 
-func TestBuildOrderResultRejectsZeroPromotionPrice(t *testing.T) {
+func TestBuildOrderResultAllowsZeroPromotionPrice(t *testing.T) {
 	dsn := fmt.Sprintf("file:order_service_promo_zero_%d?mode=memory&cache=shared", time.Now().UnixNano())
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -226,7 +226,7 @@ func TestBuildOrderResultRejectsZeroPromotionPrice(t *testing.T) {
 		ExpireMinutes:  15,
 	})
 
-	_, err = svc.buildOrderResult(orderCreateParams{
+	result, err := svc.buildOrderResult(orderCreateParams{
 		UserID: 1,
 		Items: []CreateOrderItem{
 			{
@@ -236,8 +236,14 @@ func TestBuildOrderResultRejectsZeroPromotionPrice(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, ErrProductPriceInvalid) {
-		t.Fatalf("expected product price invalid, got: %v", err)
+	if err != nil {
+		t.Fatalf("expected zero promotion price to be allowed, got: %v", err)
+	}
+	if !result.TotalAmount.Equal(decimal.Zero) {
+		t.Fatalf("expected total amount 0, got: %s", result.TotalAmount.String())
+	}
+	if !result.OriginalAmount.Equal(decimal.NewFromInt(10)) {
+		t.Fatalf("expected original amount 10, got: %s", result.OriginalAmount.String())
 	}
 }
 
@@ -420,7 +426,7 @@ func TestBuildOrderResultOriginalAmountBeforePromotion(t *testing.T) {
 	}
 }
 
-func TestBuildOrderResultRejectsZeroTotalAmountAfterCoupon(t *testing.T) {
+func TestBuildOrderResultAllowsZeroTotalAmountAfterCoupon(t *testing.T) {
 	dsn := fmt.Sprintf("file:order_service_coupon_zero_%d?mode=memory&cache=shared", time.Now().UnixNano())
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -496,7 +502,7 @@ func TestBuildOrderResultRejectsZeroTotalAmountAfterCoupon(t *testing.T) {
 		ExpireMinutes:   15,
 	})
 
-	_, err = svc.buildOrderResult(orderCreateParams{
+	result, err := svc.buildOrderResult(orderCreateParams{
 		UserID:     1,
 		CouponCode: "FREE10",
 		Items: []CreateOrderItem{
@@ -507,7 +513,13 @@ func TestBuildOrderResultRejectsZeroTotalAmountAfterCoupon(t *testing.T) {
 			},
 		},
 	})
-	if !errors.Is(err, ErrInvalidOrderAmount) {
-		t.Fatalf("expected invalid order amount, got: %v", err)
+	if err != nil {
+		t.Fatalf("expected zero coupon total to be allowed, got: %v", err)
+	}
+	if !result.TotalAmount.Equal(decimal.Zero) {
+		t.Fatalf("expected total amount 0, got: %s", result.TotalAmount.String())
+	}
+	if !result.DiscountAmount.Equal(decimal.NewFromInt(10)) {
+		t.Fatalf("expected discount amount 10, got: %s", result.DiscountAmount.String())
 	}
 }

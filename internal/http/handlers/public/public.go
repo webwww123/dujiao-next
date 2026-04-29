@@ -1010,7 +1010,7 @@ type CreateGuestPaymentRequest struct {
 	Email         string `json:"email" binding:"required"`
 	OrderPassword string `json:"order_password" binding:"required"`
 	OrderNo       string `json:"order_no" binding:"required"`
-	ChannelID     uint   `json:"channel_id" binding:"required"`
+	ChannelID     uint   `json:"channel_id"`
 }
 
 type LatestGuestPaymentQuery struct {

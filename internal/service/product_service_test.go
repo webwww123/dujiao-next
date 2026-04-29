@@ -379,6 +379,101 @@ func TestProductServiceCreateRejectsParentCategoryWithChildren(t *testing.T) {
 	}
 }
 
+func TestProductServiceCreateAllowsZeroPrice(t *testing.T) {
+	svc, db := newProductServiceForTest(t)
+
+	category := models.Category{
+		Slug:     "free-products",
+		NameJSON: models.JSON{"zh-CN": "free-products"},
+	}
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatalf("create category failed: %v", err)
+	}
+	stock := constants.ManualStockUnlimited
+	active := true
+
+	product, err := svc.Create(CreateProductInput{
+		CategoryID:       category.ID,
+		Slug:             "free-single-product",
+		TitleJSON:        map[string]interface{}{"zh-CN": "free-single-product"},
+		PriceAmount:      decimal.Zero,
+		CostPriceAmount:  decimal.Zero,
+		PurchaseType:     constants.ProductPurchaseMember,
+		FulfillmentType:  constants.FulfillmentTypeManual,
+		ManualStockTotal: &stock,
+		IsActive:         &active,
+	})
+	if err != nil {
+		t.Fatalf("expected zero price product to be allowed, got: %v", err)
+	}
+	if !product.PriceAmount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("expected product price 0, got: %s", product.PriceAmount.String())
+	}
+
+	skus, err := repository.NewProductSKURepository(db).ListByProduct(product.ID, false)
+	if err != nil {
+		t.Fatalf("list skus failed: %v", err)
+	}
+	if len(skus) != 1 {
+		t.Fatalf("expected one default sku, got %d", len(skus))
+	}
+	if !skus[0].PriceAmount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("expected default sku price 0, got: %s", skus[0].PriceAmount.String())
+	}
+}
+
+func TestProductServiceCreateAllowsZeroSKUPrice(t *testing.T) {
+	svc, db := newProductServiceForTest(t)
+
+	category := models.Category{
+		Slug:     "free-skus",
+		NameJSON: models.JSON{"zh-CN": "free-skus"},
+	}
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatalf("create category failed: %v", err)
+	}
+	stock := constants.ManualStockUnlimited
+	active := true
+
+	product, err := svc.Create(CreateProductInput{
+		CategoryID:      category.ID,
+		Slug:            "free-sku-product",
+		TitleJSON:       map[string]interface{}{"zh-CN": "free-sku-product"},
+		PriceAmount:     decimal.Zero,
+		CostPriceAmount: decimal.Zero,
+		PurchaseType:    constants.ProductPurchaseMember,
+		FulfillmentType: constants.FulfillmentTypeManual,
+		SKUs: []ProductSKUInput{
+			{
+				SKUCode:          "FREE",
+				SpecValuesJSON:   map[string]interface{}{"zh-CN": "free"},
+				PriceAmount:      decimal.Zero,
+				CostPriceAmount:  decimal.Zero,
+				ManualStockTotal: stock,
+				IsActive:         &active,
+			},
+		},
+		IsActive: &active,
+	})
+	if err != nil {
+		t.Fatalf("expected zero sku price to be allowed, got: %v", err)
+	}
+	if !product.PriceAmount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("expected product price 0, got: %s", product.PriceAmount.String())
+	}
+
+	skus, err := repository.NewProductSKURepository(db).ListByProduct(product.ID, false)
+	if err != nil {
+		t.Fatalf("list skus failed: %v", err)
+	}
+	if len(skus) != 1 {
+		t.Fatalf("expected one sku, got %d", len(skus))
+	}
+	if !skus[0].PriceAmount.Decimal.Equal(decimal.Zero) {
+		t.Fatalf("expected sku price 0, got: %s", skus[0].PriceAmount.String())
+	}
+}
+
 func TestProductServiceListPublicSortOrderDescending(t *testing.T) {
 	svc, db := newProductServiceForTest(t)
 
