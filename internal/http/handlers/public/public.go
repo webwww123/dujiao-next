@@ -816,8 +816,8 @@ func (h *Handler) CreateGuestOrderAndPay(c *gin.Context) {
 	orderResp := dto.NewOrderDetail(order)
 	h.enrichOrderWithAllowedChannels(order, &orderResp)
 
-	// 如果未指定支付渠道，仅返回订单
-	if req.ChannelID == 0 {
+	// 非 0 元订单未指定支付方式时，仅返回订单。
+	if !shouldCreatePaymentForOrder(req.ChannelID, false, order.TotalAmount.Decimal) {
 		response.Success(c, gin.H{
 			"order":    orderResp,
 			"order_no": order.OrderNo,

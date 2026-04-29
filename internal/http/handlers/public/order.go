@@ -274,8 +274,8 @@ func (h *Handler) CreateOrderAndPay(c *gin.Context) {
 	orderResp := dto.NewOrderDetail(order)
 	h.enrichOrderWithAllowedChannels(order, &orderResp)
 
-	// 如果未指定支付渠道且未使用余额，仅返回订单
-	if req.ChannelID == 0 && !req.UseBalance {
+	// 非 0 元订单未指定支付方式时，仅返回订单。
+	if !shouldCreatePaymentForOrder(req.ChannelID, req.UseBalance, order.TotalAmount.Decimal) {
 		response.Success(c, gin.H{
 			"order":    orderResp,
 			"order_no": order.OrderNo,
