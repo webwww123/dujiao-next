@@ -83,7 +83,7 @@ type ProductSKURequest struct {
 	ID               uint                   `json:"id"`
 	SKUCode          string                 `json:"sku_code" binding:"required"`
 	SpecValuesJSON   map[string]interface{} `json:"spec_values"`
-	PriceAmount      float64                `json:"price_amount" binding:"required"`
+	PriceAmount      *float64               `json:"price_amount" binding:"required"`
 	CostPriceAmount  float64                `json:"cost_price_amount"`
 	ManualStockTotal int                    `json:"manual_stock_total"`
 	IsActive         *bool                  `json:"is_active"`
@@ -99,7 +99,7 @@ type CreateProductRequest struct {
 	DescriptionJSON     map[string]interface{} `json:"description"`
 	ContentJSON         map[string]interface{} `json:"content"`
 	ManualFormSchema    map[string]interface{} `json:"manual_form_schema"`
-	PriceAmount         float64                `json:"price_amount" binding:"required"`
+	PriceAmount         *float64               `json:"price_amount" binding:"required"`
 	CostPriceAmount     float64                `json:"cost_price_amount"`
 	Images              []string               `json:"images"`
 	Tags                []string               `json:"tags"`
@@ -114,6 +114,13 @@ type CreateProductRequest struct {
 	SortOrder           int                    `json:"sort_order"`
 }
 
+func float64Value(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
 func toProductSKUInputs(items []ProductSKURequest) []service.ProductSKUInput {
 	if len(items) == 0 {
 		return nil
@@ -124,7 +131,7 @@ func toProductSKUInputs(items []ProductSKURequest) []service.ProductSKUInput {
 			ID:               item.ID,
 			SKUCode:          item.SKUCode,
 			SpecValuesJSON:   item.SpecValuesJSON,
-			PriceAmount:      decimal.NewFromFloat(item.PriceAmount),
+			PriceAmount:      decimal.NewFromFloat(float64Value(item.PriceAmount)),
 			CostPriceAmount:  decimal.NewFromFloat(item.CostPriceAmount),
 			ManualStockTotal: item.ManualStockTotal,
 			IsActive:         item.IsActive,
@@ -150,7 +157,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		DescriptionJSON:      req.DescriptionJSON,
 		ContentJSON:          req.ContentJSON,
 		ManualFormSchemaJSON: req.ManualFormSchema,
-		PriceAmount:          decimal.NewFromFloat(req.PriceAmount),
+		PriceAmount:          decimal.NewFromFloat(float64Value(req.PriceAmount)),
 		CostPriceAmount:      decimal.NewFromFloat(req.CostPriceAmount),
 		Images:               req.Images,
 		Tags:                 req.Tags,
@@ -226,7 +233,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		DescriptionJSON:      req.DescriptionJSON,
 		ContentJSON:          req.ContentJSON,
 		ManualFormSchemaJSON: req.ManualFormSchema,
-		PriceAmount:          decimal.NewFromFloat(req.PriceAmount),
+		PriceAmount:          decimal.NewFromFloat(float64Value(req.PriceAmount)),
 		CostPriceAmount:      decimal.NewFromFloat(req.CostPriceAmount),
 		Images:               req.Images,
 		Tags:                 req.Tags,

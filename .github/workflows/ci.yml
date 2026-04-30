@@ -19,4 +19,4 @@ jobs:
           go-version: stable
 
       - name: Run tests
-        run: go test ./cmd/server ./internal/service ./internal/http/handlers/public
+        run: go test ./cmd/server ./internal/service ./internal/http/handlers/public ./internal/http/handlers/admin
