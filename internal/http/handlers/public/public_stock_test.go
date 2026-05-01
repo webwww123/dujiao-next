@@ -53,3 +53,37 @@ func TestDecorateProductStock_AutoSkipsInactiveSKUs(t *testing.T) {
 		t.Fatalf("expected product not sold out when active sku has stock")
 	}
 }
+
+func TestProductRespIncludesDisplayStockWithoutChangingRealStock(t *testing.T) {
+	displayStock := 1
+	product := &models.Product{
+		ID:                   2,
+		FulfillmentType:      constants.FulfillmentTypeAuto,
+		DisplayStockQuantity: &displayStock,
+		SKUs: []models.ProductSKU{
+			{
+				ID:                 21,
+				SKUCode:            models.DefaultSKUCode,
+				IsActive:           true,
+				AutoStockAvailable: 0,
+			},
+		},
+	}
+
+	item := publicProductView{Product: *product}
+	(&Handler{}).decorateProductStock(product, &item)
+	resp := item.toProductResp()
+
+	if resp.DisplayStockQuantity == nil || *resp.DisplayStockQuantity != 1 {
+		t.Fatalf("display_stock_quantity want 1 got %#v", resp.DisplayStockQuantity)
+	}
+	if resp.StockStatus != constants.ProductStockStatusOutOfStock {
+		t.Fatalf("stock_status should still use real stock, got %s", resp.StockStatus)
+	}
+	if !resp.IsSoldOut {
+		t.Fatalf("is_sold_out should still use real stock")
+	}
+	if resp.AutoStockAvailable != 0 {
+		t.Fatalf("auto_stock_available should still use real stock, got %d", resp.AutoStockAvailable)
+	}
+}

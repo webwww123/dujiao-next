@@ -75,15 +75,15 @@ func TestCreateProductAllowsZeroPrice(t *testing.T) {
 	}
 
 	body := map[string]any{
-		"category_id":       category.ID,
-		"slug":              "free-product-handler",
-		"title":             map[string]any{"zh-CN": "free-product-handler"},
-		"price_amount":      0,
-		"cost_price_amount": 0,
-		"purchase_type":     constants.ProductPurchaseMember,
-		"fulfillment_type":  constants.FulfillmentTypeManual,
+		"category_id":        category.ID,
+		"slug":               "free-product-handler",
+		"title":              map[string]any{"zh-CN": "free-product-handler"},
+		"price_amount":       0,
+		"cost_price_amount":  0,
+		"purchase_type":      constants.ProductPurchaseMember,
+		"fulfillment_type":   constants.FulfillmentTypeManual,
 		"manual_stock_total": -1,
-		"is_active":         true,
+		"is_active":          true,
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -170,7 +170,7 @@ func TestCreateProductAllowsZeroSKUPrice(t *testing.T) {
 	}
 
 	var resp struct {
-		StatusCode int `json:"status_code"`
+		StatusCode int    `json:"status_code"`
 		Msg        string `json:"msg"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
@@ -178,5 +178,70 @@ func TestCreateProductAllowsZeroSKUPrice(t *testing.T) {
 	}
 	if resp.StatusCode != 0 {
 		t.Fatalf("status_code want 0 got %d msg=%s body=%s", resp.StatusCode, resp.Msg, w.Body.String())
+	}
+}
+
+func TestCreateProductPersistsDisplayStockQuantity(t *testing.T) {
+	h, db := setupAdminProductHandlerTest(t)
+
+	category := models.Category{
+		Slug:     "display-stock-category",
+		NameJSON: models.JSON{"zh-CN": "display-stock-category"},
+	}
+	if err := db.Create(&category).Error; err != nil {
+		t.Fatalf("create category failed: %v", err)
+	}
+
+	body := map[string]any{
+		"category_id":            category.ID,
+		"slug":                   "display-stock-product",
+		"title":                  map[string]any{"zh-CN": "display-stock-product"},
+		"price_amount":           1,
+		"cost_price_amount":      0,
+		"purchase_type":          constants.ProductPurchaseMember,
+		"fulfillment_type":       constants.FulfillmentTypeAuto,
+		"display_stock_quantity": 1,
+		"is_active":              true,
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal body failed: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/admin/products", bytes.NewReader(raw))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.CreateProduct(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status code want %d got %d body=%s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		StatusCode int `json:"status_code"`
+		Data       struct {
+			ID                   uint `json:"id"`
+			DisplayStockQuantity *int `json:"display_stock_quantity"`
+		} `json:"data"`
+		Msg string `json:"msg"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response failed: %v body=%s", err, w.Body.String())
+	}
+	if resp.StatusCode != 0 {
+		t.Fatalf("status_code want 0 got %d msg=%s body=%s", resp.StatusCode, resp.Msg, w.Body.String())
+	}
+	if resp.Data.DisplayStockQuantity == nil || *resp.Data.DisplayStockQuantity != 1 {
+		t.Fatalf("display_stock_quantity want 1 got %#v body=%s", resp.Data.DisplayStockQuantity, w.Body.String())
+	}
+
+	var saved models.Product
+	if err := db.First(&saved, resp.Data.ID).Error; err != nil {
+		t.Fatalf("fetch product failed: %v", err)
+	}
+	if saved.DisplayStockQuantity == nil || *saved.DisplayStockQuantity != 1 {
+		t.Fatalf("saved display_stock_quantity want 1 got %#v", saved.DisplayStockQuantity)
 	}
 }

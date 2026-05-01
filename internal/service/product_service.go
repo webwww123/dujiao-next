@@ -68,6 +68,7 @@ type CreateProductInput struct {
 	MaxPurchaseQuantity  *int
 	FulfillmentType      string
 	ManualStockTotal     *int
+	DisplayStockQuantity *int
 	SKUs                 []ProductSKUInput
 	PaymentChannelIDs    []uint
 	IsAffiliateEnabled   *bool
@@ -248,6 +249,7 @@ func (s *ProductService) Create(input CreateProductInput) (*models.Product, erro
 		MaxPurchaseQuantity:  maxPurchaseQuantity,
 		FulfillmentType:      fulfillmentType,
 		ManualStockTotal:     manualStockTotal,
+		DisplayStockQuantity: normalizeDisplayStockQuantity(input.DisplayStockQuantity),
 		ManualStockLocked:    0,
 		ManualStockSold:      0,
 		PaymentChannelIDs:    EncodeChannelIDs(input.PaymentChannelIDs),
@@ -398,6 +400,7 @@ func (s *ProductService) Update(id string, input CreateProductInput) (*models.Pr
 		product.CostPriceAmount = models.NewMoneyFromDecimal(input.CostPriceAmount.Round(2))
 	}
 	product.ManualStockTotal = manualStockTotal
+	product.DisplayStockQuantity = normalizeDisplayStockQuantity(input.DisplayStockQuantity)
 
 	if err := s.repo.Transaction(func(tx *gorm.DB) error {
 		productRepo := s.repo.WithTx(tx)
@@ -478,6 +481,17 @@ func syncSingleProductSKU(skuRepo repository.ProductSKURepository, productID uin
 		}
 	}
 	return nil
+}
+
+func normalizeDisplayStockQuantity(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	normalized := *value
+	if normalized <= 0 {
+		return nil
+	}
+	return &normalized
 }
 
 func pickSingleModeTargetSKUIndex(skus []models.ProductSKU) int {

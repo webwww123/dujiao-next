@@ -92,26 +92,27 @@ type ProductSKURequest struct {
 
 // CreateProductRequest 创建商品请求
 type CreateProductRequest struct {
-	CategoryID          uint                   `json:"category_id" binding:"required"`
-	Slug                string                 `json:"slug" binding:"required"`
-	SeoMetaJSON         map[string]interface{} `json:"seo_meta"`
-	TitleJSON           map[string]interface{} `json:"title" binding:"required"`
-	DescriptionJSON     map[string]interface{} `json:"description"`
-	ContentJSON         map[string]interface{} `json:"content"`
-	ManualFormSchema    map[string]interface{} `json:"manual_form_schema"`
-	PriceAmount         *float64               `json:"price_amount" binding:"required"`
-	CostPriceAmount     float64                `json:"cost_price_amount"`
-	Images              []string               `json:"images"`
-	Tags                []string               `json:"tags"`
-	PurchaseType        string                 `json:"purchase_type"`
-	MaxPurchaseQuantity *int                   `json:"max_purchase_quantity"`
-	FulfillmentType     string                 `json:"fulfillment_type"`
-	ManualStockTotal    *int                   `json:"manual_stock_total"`
-	SKUs                []ProductSKURequest    `json:"skus"`
-	PaymentChannelIDs   []uint                 `json:"payment_channel_ids"`
-	IsAffiliateEnabled  *bool                  `json:"is_affiliate_enabled"`
-	IsActive            *bool                  `json:"is_active"`
-	SortOrder           int                    `json:"sort_order"`
+	CategoryID           uint                   `json:"category_id" binding:"required"`
+	Slug                 string                 `json:"slug" binding:"required"`
+	SeoMetaJSON          map[string]interface{} `json:"seo_meta"`
+	TitleJSON            map[string]interface{} `json:"title" binding:"required"`
+	DescriptionJSON      map[string]interface{} `json:"description"`
+	ContentJSON          map[string]interface{} `json:"content"`
+	ManualFormSchema     map[string]interface{} `json:"manual_form_schema"`
+	PriceAmount          *float64               `json:"price_amount" binding:"required"`
+	CostPriceAmount      float64                `json:"cost_price_amount"`
+	Images               []string               `json:"images"`
+	Tags                 []string               `json:"tags"`
+	PurchaseType         string                 `json:"purchase_type"`
+	MaxPurchaseQuantity  *int                   `json:"max_purchase_quantity"`
+	FulfillmentType      string                 `json:"fulfillment_type"`
+	ManualStockTotal     *int                   `json:"manual_stock_total"`
+	DisplayStockQuantity *int                   `json:"display_stock_quantity"`
+	SKUs                 []ProductSKURequest    `json:"skus"`
+	PaymentChannelIDs    []uint                 `json:"payment_channel_ids"`
+	IsAffiliateEnabled   *bool                  `json:"is_affiliate_enabled"`
+	IsActive             *bool                  `json:"is_active"`
+	SortOrder            int                    `json:"sort_order"`
 }
 
 func float64Value(v *float64) float64 {
@@ -165,6 +166,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		MaxPurchaseQuantity:  req.MaxPurchaseQuantity,
 		FulfillmentType:      req.FulfillmentType,
 		ManualStockTotal:     req.ManualStockTotal,
+		DisplayStockQuantity: req.DisplayStockQuantity,
 		SKUs:                 toProductSKUInputs(req.SKUs),
 		PaymentChannelIDs:    req.PaymentChannelIDs,
 		IsAffiliateEnabled:   req.IsAffiliateEnabled,
@@ -241,6 +243,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		MaxPurchaseQuantity:  req.MaxPurchaseQuantity,
 		FulfillmentType:      req.FulfillmentType,
 		ManualStockTotal:     req.ManualStockTotal,
+		DisplayStockQuantity: req.DisplayStockQuantity,
 		SKUs:                 toProductSKUInputs(req.SKUs),
 		PaymentChannelIDs:    req.PaymentChannelIDs,
 		IsAffiliateEnabled:   req.IsAffiliateEnabled,

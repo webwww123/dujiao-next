@@ -19,6 +19,7 @@ type ProductResp struct {
 	MaxPurchaseQuantity  int                `json:"max_purchase_quantity"`
 	FulfillmentType      string             `json:"fulfillment_type"`
 	ManualFormSchema     models.JSON        `json:"manual_form_schema"`
+	DisplayStockQuantity *int               `json:"display_stock_quantity,omitempty"`
 	ManualStockAvailable int                `json:"manual_stock_available"`
 	AutoStockAvailable   int64              `json:"auto_stock_available"`
 	StockStatus          string             `json:"stock_status"`

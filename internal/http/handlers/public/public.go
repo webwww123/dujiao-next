@@ -81,6 +81,7 @@ func (v *publicProductView) toProductResp() dto.ProductResp {
 		MaxPurchaseQuantity:  v.Product.MaxPurchaseQuantity,
 		FulfillmentType:      v.Product.FulfillmentType,
 		ManualFormSchema:     v.Product.ManualFormSchemaJSON,
+		DisplayStockQuantity: v.Product.DisplayStockQuantity,
 		ManualStockAvailable: v.ManualStockAvailable,
 		AutoStockAvailable:   v.AutoStockAvailable,
 		StockStatus:          v.StockStatus,
