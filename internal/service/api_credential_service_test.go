@@ -31,7 +31,7 @@ func setupApiCredentialServiceTest(t *testing.T) (*ApiCredentialService, reposit
 	return NewApiCredentialService(repo), repo, db
 }
 
-func TestApiCredentialServiceApplyCreatesPendingRecordWhenMissing(t *testing.T) {
+func TestApiCredentialServiceApplyCreatesApprovedCredentialWhenMissing(t *testing.T) {
 	svc, repo, _ := setupApiCredentialServiceTest(t)
 
 	cred, err := svc.Apply(1001)
@@ -41,11 +41,23 @@ func TestApiCredentialServiceApplyCreatesPendingRecordWhenMissing(t *testing.T) 
 	if cred == nil {
 		t.Fatal("expected credential, got nil")
 	}
-	if cred.Status != constants.ApiCredentialStatusPendingReview {
-		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusPendingReview, cred.Status)
+	if cred.Status != constants.ApiCredentialStatusApproved {
+		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusApproved, cred.Status)
 	}
 	if cred.UserID != 1001 {
 		t.Fatalf("expected user id 1001, got %d", cred.UserID)
+	}
+	if cred.ApiKey == "" {
+		t.Fatal("expected api key to be generated")
+	}
+	if cred.ApiSecret == "" {
+		t.Fatal("expected api secret to be generated")
+	}
+	if cred.ApprovedAt == nil {
+		t.Fatal("expected approved_at to be set")
+	}
+	if !cred.IsActive {
+		t.Fatal("expected credential to be active")
 	}
 
 	stored, err := repo.GetByUserID(1001)
@@ -54,6 +66,9 @@ func TestApiCredentialServiceApplyCreatesPendingRecordWhenMissing(t *testing.T) 
 	}
 	if stored == nil {
 		t.Fatal("expected stored credential, got nil")
+	}
+	if stored.Status != constants.ApiCredentialStatusApproved {
+		t.Fatalf("expected stored status %s, got %s", constants.ApiCredentialStatusApproved, stored.Status)
 	}
 }
 
@@ -85,23 +100,26 @@ func TestApiCredentialServiceApplyRestoresDeletedCredential(t *testing.T) {
 	if reapplied.ID != cred.ID {
 		t.Fatalf("expected to reuse credential id %d, got %d", cred.ID, reapplied.ID)
 	}
-	if reapplied.Status != constants.ApiCredentialStatusPendingReview {
-		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusPendingReview, reapplied.Status)
+	if reapplied.Status != constants.ApiCredentialStatusApproved {
+		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusApproved, reapplied.Status)
 	}
 	if reapplied.ApiKey == "" || reapplied.ApiKey == "legacy-key" {
 		t.Fatalf("expected new api key, got %q", reapplied.ApiKey)
 	}
-	if reapplied.ApiSecret != "" {
-		t.Fatalf("expected api secret to be cleared, got %q", reapplied.ApiSecret)
+	if reapplied.ApiSecret == "" || reapplied.ApiSecret == "legacy-secret" {
+		t.Fatal("expected new api secret")
 	}
 	if reapplied.RejectReason != "" {
 		t.Fatalf("expected reject reason cleared, got %q", reapplied.RejectReason)
 	}
-	if reapplied.ApprovedAt != nil || reapplied.LastUsedAt != nil {
-		t.Fatal("expected approved_at and last_used_at cleared")
+	if reapplied.ApprovedAt == nil {
+		t.Fatal("expected approved_at to be set")
 	}
-	if reapplied.IsActive {
-		t.Fatal("expected inactive credential after reapply")
+	if reapplied.LastUsedAt != nil {
+		t.Fatal("expected last_used_at cleared")
+	}
+	if !reapplied.IsActive {
+		t.Fatal("expected active credential after reapply")
 	}
 	if reapplied.DeletedAt.Valid {
 		t.Fatal("expected deleted_at to be cleared")
@@ -144,27 +162,30 @@ func TestApiCredentialServiceApplyResetsRejectedCredential(t *testing.T) {
 	if reapplied.ID != cred.ID {
 		t.Fatalf("expected to reuse credential id %d, got %d", cred.ID, reapplied.ID)
 	}
-	if reapplied.Status != constants.ApiCredentialStatusPendingReview {
-		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusPendingReview, reapplied.Status)
+	if reapplied.Status != constants.ApiCredentialStatusApproved {
+		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusApproved, reapplied.Status)
 	}
 	if reapplied.ApiKey == "" || reapplied.ApiKey == "old-key" {
 		t.Fatalf("expected new api key, got %q", reapplied.ApiKey)
 	}
-	if reapplied.ApiSecret != "" {
-		t.Fatalf("expected api secret cleared, got %q", reapplied.ApiSecret)
+	if reapplied.ApiSecret == "" || reapplied.ApiSecret == "old-secret" {
+		t.Fatal("expected new api secret")
 	}
 	if reapplied.RejectReason != "" {
 		t.Fatalf("expected reject reason cleared, got %q", reapplied.RejectReason)
 	}
-	if reapplied.ApprovedAt != nil || reapplied.LastUsedAt != nil {
-		t.Fatal("expected approved_at and last_used_at cleared")
+	if reapplied.ApprovedAt == nil {
+		t.Fatal("expected approved_at to be set")
 	}
-	if reapplied.IsActive {
-		t.Fatal("expected inactive credential after reapply")
+	if reapplied.LastUsedAt != nil {
+		t.Fatal("expected last_used_at cleared")
+	}
+	if !reapplied.IsActive {
+		t.Fatal("expected active credential after reapply")
 	}
 }
 
-func TestApiCredentialServiceApplyBlocksPendingReview(t *testing.T) {
+func TestApiCredentialServiceApplyApprovesExistingPendingReview(t *testing.T) {
 	svc, repo, _ := setupApiCredentialServiceTest(t)
 
 	cred := &models.ApiCredential{
@@ -175,9 +196,27 @@ func TestApiCredentialServiceApplyBlocksPendingReview(t *testing.T) {
 		t.Fatalf("create pending credential failed: %v", err)
 	}
 
-	_, err := svc.Apply(1004)
-	if !errors.Is(err, ErrApiCredentialPendingExist) {
-		t.Fatalf("expected ErrApiCredentialPendingExist, got %v", err)
+	reapplied, err := svc.Apply(1004)
+	if err != nil {
+		t.Fatalf("apply pending credential failed: %v", err)
+	}
+	if reapplied.ID != cred.ID {
+		t.Fatalf("expected to reuse credential id %d, got %d", cred.ID, reapplied.ID)
+	}
+	if reapplied.Status != constants.ApiCredentialStatusApproved {
+		t.Fatalf("expected status %s, got %s", constants.ApiCredentialStatusApproved, reapplied.Status)
+	}
+	if reapplied.ApiKey == "" {
+		t.Fatal("expected api key to be generated")
+	}
+	if reapplied.ApiSecret == "" {
+		t.Fatal("expected api secret to be generated")
+	}
+	if reapplied.ApprovedAt == nil {
+		t.Fatal("expected approved_at to be set")
+	}
+	if !reapplied.IsActive {
+		t.Fatal("expected active credential")
 	}
 }
 

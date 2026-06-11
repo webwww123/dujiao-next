@@ -38,7 +38,7 @@ func (s *ApiCredentialService) Apply(userID uint) (*models.ApiCredential, error)
 
 	if existing != nil {
 		if existing.DeletedAt.Valid {
-			if err := resetApiCredentialForReapply(existing); err != nil {
+			if err := approveApiCredential(existing); err != nil {
 				return nil, err
 			}
 			if err := s.credRepo.UpdateAny(existing); err != nil {
@@ -49,12 +49,18 @@ func (s *ApiCredentialService) Apply(userID uint) (*models.ApiCredential, error)
 
 		switch existing.Status {
 		case constants.ApiCredentialStatusPendingReview:
-			return nil, ErrApiCredentialPendingExist
+			if err := approveApiCredential(existing); err != nil {
+				return nil, err
+			}
+			if err := s.credRepo.Update(existing); err != nil {
+				return nil, err
+			}
+			return existing, nil
 		case constants.ApiCredentialStatusApproved:
 			return nil, ErrApiCredentialExists
 		case constants.ApiCredentialStatusRejected:
-			// 允许重新申请，并重置旧审批与凭证痕迹。
-			if err := resetApiCredentialForReapply(existing); err != nil {
+			// 允许重新申请，并直接自动通过。
+			if err := approveApiCredential(existing); err != nil {
 				return nil, err
 			}
 			if err := s.credRepo.Update(existing); err != nil {
@@ -66,14 +72,11 @@ func (s *ApiCredentialService) Apply(userID uint) (*models.ApiCredential, error)
 		}
 	}
 
-	apiKey, err := generateRandomHex(32)
-	if err != nil {
-		return nil, err
-	}
 	cred := &models.ApiCredential{
 		UserID: userID,
-		ApiKey: apiKey,
-		Status: constants.ApiCredentialStatusPendingReview,
+	}
+	if err := approveApiCredential(cred); err != nil {
+		return nil, err
 	}
 	if err := s.credRepo.Create(cred); err != nil {
 		return nil, err
@@ -81,18 +84,23 @@ func (s *ApiCredentialService) Apply(userID uint) (*models.ApiCredential, error)
 	return cred, nil
 }
 
-func resetApiCredentialForReapply(cred *models.ApiCredential) error {
+func approveApiCredential(cred *models.ApiCredential) error {
 	apiKey, err := generateRandomHex(32)
 	if err != nil {
 		return err
 	}
+	apiSecret, err := generateRandomHex(64)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
 	cred.ApiKey = apiKey
-	cred.ApiSecret = ""
-	cred.Status = constants.ApiCredentialStatusPendingReview
+	cred.ApiSecret = apiSecret
+	cred.Status = constants.ApiCredentialStatusApproved
 	cred.RejectReason = ""
-	cred.ApprovedAt = nil
+	cred.ApprovedAt = &now
 	cred.LastUsedAt = nil
-	cred.IsActive = false
+	cred.IsActive = true
 	cred.DeletedAt = gorm.DeletedAt{}
 	return nil
 }
@@ -107,22 +115,10 @@ func (s *ApiCredentialService) Approve(id uint) (*models.ApiCredential, string, 
 		return nil, "", ErrApiCredentialNotFound
 	}
 
-	apiKey, err := generateRandomHex(32)
-	if err != nil {
+	if err := approveApiCredential(cred); err != nil {
 		return nil, "", err
 	}
-	apiSecret, err := generateRandomHex(64)
-	if err != nil {
-		return nil, "", err
-	}
-
-	now := time.Now()
-	cred.ApiKey = apiKey
-	cred.ApiSecret = apiSecret
-	cred.Status = constants.ApiCredentialStatusApproved
-	cred.ApprovedAt = &now
-	cred.IsActive = true
-	cred.RejectReason = ""
+	apiSecret := cred.ApiSecret
 
 	if err := s.credRepo.Update(cred); err != nil {
 		return nil, "", err
