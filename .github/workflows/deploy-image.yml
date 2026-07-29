@@ -1,0 +1,28 @@
+name: Build deployment image
+
+on:
+  push:
+    branches:
+      - free-product-orders
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -t dujiaonext/api:supxh .
+
+      - name: Export API image
+        run: docker save dujiaonext/api:supxh | gzip -1 > dujiao-next-api.tar.gz
+
+      - name: Upload API image
+        uses: actions/upload-artifact@v4
+        with:
+          name: dujiao-next-api-${{ github.sha }}
+          path: dujiao-next-api.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
