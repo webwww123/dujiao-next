@@ -15,6 +15,7 @@ type OrderRepository interface {
 	Create(order *models.Order, items []models.OrderItem) error
 	GetByID(id uint) (*models.Order, error)
 	GetByIDs(ids []uint) ([]models.Order, error)
+	GetByOrderNos(orderNos []string) ([]models.Order, error)
 	ResolveReceiverEmailByOrderID(orderID uint) (string, error)
 	GetByIDAndUser(id uint, userID uint) (*models.Order, error)
 	GetByOrderNoAndUser(orderNo string, userID uint) (*models.Order, error)
@@ -93,6 +94,20 @@ func (r *GormOrderRepository) GetByIDs(ids []uint) ([]models.Order, error) {
 	}
 	var orders []models.Order
 	if err := r.db.Where("id IN ?", ids).Find(&orders).Error; err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+// GetByOrderNos 根据订单号批量获取父订单，用于行为分析关联最终支付状态。
+func (r *GormOrderRepository) GetByOrderNos(orderNos []string) ([]models.Order, error) {
+	if len(orderNos) == 0 {
+		return []models.Order{}, nil
+	}
+	var orders []models.Order
+	if err := r.db.
+		Where("parent_id IS NULL AND order_no IN ?", orderNos).
+		Find(&orders).Error; err != nil {
 		return nil, err
 	}
 	return orders, nil

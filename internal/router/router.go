@@ -60,6 +60,13 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 		BlockSeconds:  30,
 		MessageKey:    "error.rate_limited",
 	}
+	behaviorEventRule := RateLimitRule{
+		Prefix:        fmt.Sprintf("%s:rate:behavior_events", redisPrefix),
+		WindowSeconds: 60,
+		MaxRequests:   120,
+		BlockSeconds:  30,
+		MessageKey:    "error.rate_limited",
+	}
 
 	// 中间件
 	r.Use(gin.Recovery())
@@ -86,6 +93,7 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 			public.GET("/categories", publicHandler.GetCategories)
 			public.GET("/captcha/image", publicHandler.GetImageCaptcha)
 			public.POST("/affiliate/click", publicHandler.TrackAffiliateClick)
+			public.POST("/behavior/events", RateLimitMiddleware(redisClient, behaviorEventRule, KeyByIP), publicHandler.TrackBehaviorEvents)
 			public.GET("/member-levels", publicHandler.GetPublicMemberLevels)
 		}
 
@@ -119,6 +127,7 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 		user.Use(UserJWTAuthMiddleware(cfg.UserJWT.SecretKey, c.UserRepo))
 		{
 			user.GET("/me", publicHandler.GetCurrentUser)
+			user.POST("/behavior/events", RateLimitMiddleware(redisClient, behaviorEventRule, KeyByIP), publicHandler.TrackBehaviorEvents)
 			user.GET("/me/login-logs", publicHandler.GetMyLoginLogs)
 			user.PUT("/me/profile", publicHandler.UpdateUserProfile)
 			user.PUT("/me/password", publicHandler.ChangeUserPassword)
@@ -242,6 +251,9 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 				authorized.GET("/dashboard/trends", adminHandler.GetDashboardTrends)
 				authorized.GET("/dashboard/rankings", adminHandler.GetDashboardRankings)
 				authorized.GET("/dashboard/inventory-alerts", adminHandler.GetDashboardInventoryAlerts)
+				authorized.GET("/behavior-analytics/overview", adminHandler.GetBehaviorAnalyticsOverview)
+				authorized.GET("/behavior-analytics/sessions", adminHandler.ListBehaviorAnalyticsSessions)
+				authorized.GET("/behavior-analytics/sessions/:session_id", adminHandler.GetBehaviorAnalyticsSession)
 
 				// 广告代理
 				authorized.GET("/ads/render/:slotCode", adminHandler.GetAdRender)

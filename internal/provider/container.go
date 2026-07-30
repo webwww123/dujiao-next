@@ -40,6 +40,7 @@ type Container struct {
 	BannerRepo             repository.BannerRepository
 	SettingRepo            repository.SettingRepository
 	UserLoginLogRepo       repository.UserLoginLogRepository
+	BehaviorEventRepo      repository.BehaviorEventRepository
 	AuthzAuditLogRepo      repository.AuthzAuditLogRepository
 	NotificationLogRepo    repository.NotificationLogRepository
 	DashboardRepo          repository.DashboardRepository
@@ -81,6 +82,7 @@ type Container struct {
 	CardSecretService         *service.CardSecretService
 	GiftCardService           *service.GiftCardService
 	UserLoginLogService       *service.UserLoginLogService
+	BehaviorAnalyticsService  *service.BehaviorAnalyticsService
 	AuthzAuditService         *service.AuthzAuditService
 	NotificationLogService    *service.NotificationLogService
 	DashboardService          *service.DashboardService
@@ -157,6 +159,7 @@ func (c *Container) initRepositories() {
 	c.BannerRepo = repository.NewBannerRepository(db)
 	c.SettingRepo = repository.NewSettingRepository(db)
 	c.UserLoginLogRepo = repository.NewUserLoginLogRepository(db)
+	c.BehaviorEventRepo = repository.NewBehaviorEventRepository(db)
 	c.AuthzAuditLogRepo = repository.NewAuthzAuditLogRepository(db)
 	c.NotificationLogRepo = repository.NewNotificationLogRepository(db)
 	c.DashboardRepo = repository.NewDashboardRepository(db)
@@ -253,6 +256,13 @@ func (c *Container) initServices() {
 	c.PromotionAdminService = service.NewPromotionAdminService(c.PromotionRepo)
 	c.BannerService = service.NewBannerService(c.BannerRepo)
 	c.UserLoginLogService = service.NewUserLoginLogService(c.UserLoginLogRepo)
+	c.BehaviorAnalyticsService = service.NewBehaviorAnalyticsService(
+		c.BehaviorEventRepo,
+		c.OrderRepo,
+		c.ProductRepo,
+		c.CouponRepo,
+		c.UserRepo,
+	)
 	c.AuthzAuditService = service.NewAuthzAuditService(c.AuthzAuditLogRepo)
 	c.NotificationLogService = service.NewNotificationLogService(c.NotificationLogRepo)
 	c.DashboardService = service.NewDashboardService(c.DashboardRepo, c.SettingService)
