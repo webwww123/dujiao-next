@@ -859,7 +859,7 @@ func normalizePaymentStatus(status string) string {
 
 func isPaymentStatusValid(status string) bool {
 	switch status {
-	case constants.PaymentStatusInitiated, constants.PaymentStatusPending, constants.PaymentStatusSuccess, constants.PaymentStatusFailed, constants.PaymentStatusExpired:
+	case constants.PaymentStatusInitiated, constants.PaymentStatusPending, constants.PaymentStatusSuccess, constants.PaymentStatusFailed, constants.PaymentStatusExpired, constants.PaymentStatusPartiallyRefunded, constants.PaymentStatusRefunded:
 		return true
 	default:
 		return false

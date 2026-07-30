@@ -304,12 +304,13 @@ func TestCheckOrderAllowed_EmailBlacklist(t *testing.T) {
 		t.Fatalf("expected ErrRiskEmailBlacklisted, got %v", err)
 	}
 
-	// Non-guest should not be blocked by email blacklist
+	// 登录用户同样应按账号邮箱拦截
 	if err := svc.CheckOrderAllowed(RiskCheckInput{
 		UserID:   1,
+		Email:    "SPAM@example.com",
 		ClientIP: "2.3.4.5",
-	}); err != nil {
-		t.Fatalf("expected nil for non-guest, got %v", err)
+	}); err != ErrRiskEmailBlacklisted {
+		t.Fatalf("expected ErrRiskEmailBlacklisted for member email, got %v", err)
 	}
 }
 

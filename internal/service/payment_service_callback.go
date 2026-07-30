@@ -98,6 +98,14 @@ func (s *PaymentService) HandleCallback(input PaymentCallbackInput) (*models.Pay
 		return nil, ErrPaymentAmountMismatch
 	}
 
+	// 退款状态是终态：延迟的支付成功回调只更新回调元信息，不得重开订单。
+	if payment.Status == constants.PaymentStatusPartiallyRefunded || payment.Status == constants.PaymentStatusRefunded {
+		log.Infow("payment_callback_ignored_refunded_terminal",
+			"current_status", payment.Status,
+		)
+		return s.updateCallbackMeta(payment, payment.Status, input)
+	}
+
 	// 幂等处理：已成功的不再回退状态
 	if payment.Status == constants.PaymentStatusSuccess {
 		log.Infow("payment_callback_idempotent_success",

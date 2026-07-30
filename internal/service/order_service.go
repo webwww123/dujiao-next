@@ -134,17 +134,32 @@ var allowedTransitions = map[string]map[string]bool{
 		constants.OrderStatusFulfilling:         true,
 		constants.OrderStatusPartiallyDelivered: true,
 		constants.OrderStatusDelivered:          true,
+		constants.OrderStatusPartiallyRefunded:  true,
+		constants.OrderStatusRefunded:           true,
 	},
 	constants.OrderStatusFulfilling: {
 		constants.OrderStatusPartiallyDelivered: true,
 		constants.OrderStatusDelivered:          true,
+		constants.OrderStatusPartiallyRefunded:  true,
+		constants.OrderStatusRefunded:           true,
 	},
 	constants.OrderStatusPartiallyDelivered: {
-		constants.OrderStatusDelivered: true,
-		constants.OrderStatusCompleted: true,
+		constants.OrderStatusDelivered:         true,
+		constants.OrderStatusCompleted:         true,
+		constants.OrderStatusPartiallyRefunded: true,
+		constants.OrderStatusRefunded:          true,
 	},
 	constants.OrderStatusDelivered: {
-		constants.OrderStatusCompleted: true,
+		constants.OrderStatusCompleted:         true,
+		constants.OrderStatusPartiallyRefunded: true,
+		constants.OrderStatusRefunded:          true,
+	},
+	constants.OrderStatusCompleted: {
+		constants.OrderStatusPartiallyRefunded: true,
+		constants.OrderStatusRefunded:          true,
+	},
+	constants.OrderStatusPartiallyRefunded: {
+		constants.OrderStatusRefunded: true,
 	},
 }
 
@@ -324,6 +339,7 @@ func (s *OrderService) createOrder(input orderCreateParams) (*models.Order, erro
 	if s.riskControlSvc != nil && !input.SkipRiskControl {
 		if err := s.riskControlSvc.CheckOrderAllowed(RiskCheckInput{
 			UserID:      input.UserID,
+			Email:       s.resolveRiskEmail(input),
 			GuestEmail:  input.GuestEmail,
 			ClientIP:    input.ClientIP,
 			IsGuest:     input.IsGuest,
@@ -564,6 +580,24 @@ func (s *OrderService) createOrder(input orderCreateParams) (*models.Order, erro
 	}
 	fillOrderItemsFromChildren(order)
 	return order, nil
+}
+
+func (s *OrderService) resolveRiskEmail(input orderCreateParams) string {
+	if input.IsGuest {
+		return strings.TrimSpace(input.GuestEmail)
+	}
+	if input.UserID == 0 || s.userRepo == nil {
+		return ""
+	}
+	user, err := s.userRepo.GetByID(input.UserID)
+	if err != nil {
+		logger.Warnw("risk_control_user_email_lookup_error", "user_id", input.UserID, "error", err)
+		return ""
+	}
+	if user == nil {
+		return ""
+	}
+	return strings.TrimSpace(user.Email)
 }
 
 func generateOrderNo() string {

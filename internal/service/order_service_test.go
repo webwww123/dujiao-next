@@ -114,6 +114,45 @@ func TestCalcParentStatus(t *testing.T) {
 	if status != constants.OrderStatusDelivered {
 		t.Fatalf("expected delivered, got %s", status)
 	}
+
+	children = []models.Order{
+		{Status: constants.OrderStatusRefunded},
+		{Status: constants.OrderStatusRefunded},
+	}
+	status = calcParentStatus(children, constants.OrderStatusCompleted)
+	if status != constants.OrderStatusRefunded {
+		t.Fatalf("expected refunded, got %s", status)
+	}
+
+	children = []models.Order{
+		{Status: constants.OrderStatusRefunded},
+		{Status: constants.OrderStatusCompleted},
+	}
+	status = calcParentStatus(children, constants.OrderStatusCompleted)
+	if status != constants.OrderStatusPartiallyRefunded {
+		t.Fatalf("expected partially_refunded, got %s", status)
+	}
+}
+
+func TestResolveRiskEmailForMember(t *testing.T) {
+	dsn := fmt.Sprintf("file:order_service_risk_email_%d?mode=memory&cache=shared", time.Now().UnixNano())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite failed: %v", err)
+	}
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		t.Fatalf("auto migrate user failed: %v", err)
+	}
+	user := models.User{Email: "blocked@example.com", PasswordHash: "test"}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+
+	svc := &OrderService{userRepo: repository.NewUserRepository(db)}
+	got := svc.resolveRiskEmail(orderCreateParams{UserID: user.ID})
+	if got != user.Email {
+		t.Fatalf("expected member email %q, got %q", user.Email, got)
+	}
 }
 
 func TestCanCompleteParentOrder(t *testing.T) {

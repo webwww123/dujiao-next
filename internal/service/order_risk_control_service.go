@@ -49,6 +49,7 @@ func GetRetryAfter(err error) int64 {
 // RiskCheckInput 风控检查输入
 type RiskCheckInput struct {
 	UserID      uint
+	Email       string
 	GuestEmail  string
 	ClientIP    string
 	IsGuest     bool
@@ -102,9 +103,13 @@ func (s *OrderRiskControlService) CheckOrderAllowed(input RiskCheckInput) error 
 		}
 	}
 
-	// 2. 邮箱黑名单检查（游客订单）
-	if input.IsGuest && input.GuestEmail != "" && len(cfg.EmailBlacklist) > 0 {
-		normalizedEmail := strings.ToLower(strings.TrimSpace(input.GuestEmail))
+	// 2. 邮箱黑名单检查（游客和登录用户都执行）
+	email := strings.TrimSpace(input.Email)
+	if email == "" {
+		email = strings.TrimSpace(input.GuestEmail)
+	}
+	if email != "" && len(cfg.EmailBlacklist) > 0 {
+		normalizedEmail := strings.ToLower(email)
 		for _, blocked := range cfg.EmailBlacklist {
 			if normalizedEmail == blocked {
 				return ErrRiskEmailBlacklisted

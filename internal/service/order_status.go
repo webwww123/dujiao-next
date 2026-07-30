@@ -47,6 +47,8 @@ func calcParentStatus(children []models.Order, currentStatus string) string {
 	var paidCount int
 	var pendingCount int
 	var fulfillingCount int
+	var refundedCount int
+	var partiallyRefundedCount int
 	for _, child := range children {
 		switch strings.ToLower(strings.TrimSpace(child.Status)) {
 		case constants.OrderStatusCanceled:
@@ -59,9 +61,19 @@ func calcParentStatus(children []models.Order, currentStatus string) string {
 			paidCount++
 		case constants.OrderStatusFulfilling:
 			fulfillingCount++
+		case constants.OrderStatusRefunded:
+			refundedCount++
+		case constants.OrderStatusPartiallyRefunded:
+			partiallyRefundedCount++
 		case constants.OrderStatusPendingPayment:
 			pendingCount++
 		}
+	}
+	if refundedCount == len(children) {
+		return constants.OrderStatusRefunded
+	}
+	if refundedCount+partiallyRefundedCount > 0 {
+		return constants.OrderStatusPartiallyRefunded
 	}
 	if canceledCount == len(children) {
 		return constants.OrderStatusCanceled

@@ -8,6 +8,8 @@ const (
 	OrderStatusPartiallyDelivered = "partially_delivered"
 	OrderStatusDelivered          = "delivered"
 	OrderStatusCompleted          = "completed"
+	OrderStatusPartiallyRefunded  = "partially_refunded"
+	OrderStatusRefunded           = "refunded"
 	OrderStatusCanceled           = "canceled"
 )
 
@@ -22,11 +24,13 @@ const (
 
 // 支付状态常量
 const (
-	PaymentStatusInitiated = "initiated"
-	PaymentStatusPending   = "pending"
-	PaymentStatusSuccess   = "success"
-	PaymentStatusFailed    = "failed"
-	PaymentStatusExpired   = "expired"
+	PaymentStatusInitiated         = "initiated"
+	PaymentStatusPending           = "pending"
+	PaymentStatusSuccess           = "success"
+	PaymentStatusFailed            = "failed"
+	PaymentStatusExpired           = "expired"
+	PaymentStatusPartiallyRefunded = "partially_refunded"
+	PaymentStatusRefunded          = "refunded"
 )
 
 // 支付提供方常量

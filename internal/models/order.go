@@ -24,7 +24,7 @@ type Order struct {
 	TotalAmount             Money          `gorm:"type:decimal(20,2);not null;default:0" json:"total_amount"`              // 实付金额
 	WalletPaidAmount        Money          `gorm:"type:decimal(20,2);not null;default:0" json:"wallet_paid_amount"`        // 钱包支付金额
 	OnlinePaidAmount        Money          `gorm:"type:decimal(20,2);not null;default:0" json:"online_paid_amount"`        // 在线支付金额
-	RefundedAmount          Money          `gorm:"type:decimal(20,2);not null;default:0" json:"refunded_amount"`           // 已退款金额（退回钱包）
+	RefundedAmount          Money          `gorm:"type:decimal(20,2);not null;default:0" json:"refunded_amount"`           // 已退款金额（钱包或外部支付）
 	MemberLevelID           *uint          `gorm:"index" json:"member_level_id,omitempty"`                                 // 下单时等级快照
 	CouponID                *uint          `gorm:"index" json:"coupon_id,omitempty"`                                       // 优惠券ID
 	PromotionID             *uint          `gorm:"index" json:"promotion_id,omitempty"`                                    // 活动价ID（单品订单）
