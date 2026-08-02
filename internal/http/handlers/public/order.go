@@ -49,6 +49,11 @@ type CreateOrderRequest struct {
 	ManualFormData      map[string]models.JSON `json:"manual_form_data"`
 }
 
+// ClaimGuestOrdersRequest 找回游客订单请求。
+type ClaimGuestOrdersRequest struct {
+	OrderPassword string `json:"order_password" binding:"required"`
+}
+
 // OrderPaymentChannelsRequest 查询订单可用支付渠道请求
 type OrderPaymentChannelsRequest struct {
 	Amount  string             `json:"amount" binding:"required"`
@@ -347,6 +352,35 @@ func (h *Handler) ListOrders(c *gin.Context) {
 
 	pagination := response.BuildPagination(page, pageSize, total)
 	response.SuccessWithPage(c, dto.NewOrderSummaryList(orders), pagination)
+}
+
+// ClaimGuestOrders 将已支付的游客订单归属到当前登录用户。
+func (h *Handler) ClaimGuestOrders(c *gin.Context) {
+	uid, ok := shared.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	var req ClaimGuestOrdersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		shared.RespondBindError(c, err)
+		return
+	}
+
+	claimedCount, err := h.OrderService.ClaimPaidGuestOrders(uid, req.OrderPassword)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrGuestPasswordRequired):
+			shared.RespondError(c, response.CodeBadRequest, "error.guest_password_required", nil)
+		case errors.Is(err, service.ErrOrderFetchFailed):
+			shared.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		default:
+			shared.RespondError(c, response.CodeInternal, "error.order_update_failed", err)
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"claimed_count": claimedCount})
 }
 
 // GetOrderByOrderNo 按订单号获取订单详情

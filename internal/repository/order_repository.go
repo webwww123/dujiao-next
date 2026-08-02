@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/models"
@@ -26,6 +27,7 @@ type OrderRepository interface {
 	ListChildren(parentID uint) ([]models.Order, error)
 	ListByUser(filter OrderListFilter) ([]models.Order, int64, error)
 	ListByGuest(email, password string, page, pageSize int) ([]models.Order, int64, error)
+	ClaimPaidGuestOrders(userID uint, email, password string) (int64, error)
 	ListAdmin(filter OrderListFilter) ([]models.Order, int64, error)
 	UpdateStatus(id uint, status string, updates map[string]interface{}) error
 	CountOrderItemsByProduct(productID uint) (int64, error)
@@ -397,6 +399,63 @@ func (r *GormOrderRepository) ListByGuest(email, password string, page, pageSize
 		return nil, 0, err
 	}
 	return orders, total, nil
+}
+
+// ClaimPaidGuestOrders 将指定游客凭据下的已支付订单归属到当前用户。
+// 父订单与其子订单在同一事务内更新，避免列表、详情和交付权限不一致。
+func (r *GormOrderRepository) ClaimPaidGuestOrders(userID uint, email, password string) (int64, error) {
+	if userID == 0 || strings.TrimSpace(email) == "" || strings.TrimSpace(password) == "" {
+		return 0, nil
+	}
+
+	var claimedParentCount int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		var candidateParentIDs []uint
+		if err := tx.Model(&models.Order{}).
+			Where(
+				"user_id = 0 AND parent_id IS NULL AND guest_email = ? AND guest_password = ? AND paid_at IS NOT NULL AND deleted_at IS NULL",
+				email,
+				password,
+			).
+			Pluck("id", &candidateParentIDs).Error; err != nil {
+			return err
+		}
+		if len(candidateParentIDs) == 0 {
+			return nil
+		}
+
+		now := time.Now()
+		parentResult := tx.Model(&models.Order{}).
+			Where("id IN ? AND user_id = 0 AND deleted_at IS NULL", candidateParentIDs).
+			Updates(map[string]interface{}{
+				"user_id":        userID,
+				"guest_password": "",
+				"updated_at":     now,
+			})
+		if parentResult.Error != nil {
+			return parentResult.Error
+		}
+		claimedParentCount = parentResult.RowsAffected
+
+		var claimedParentIDs []uint
+		if err := tx.Model(&models.Order{}).
+			Where("id IN ? AND user_id = ? AND deleted_at IS NULL", candidateParentIDs, userID).
+			Pluck("id", &claimedParentIDs).Error; err != nil {
+			return err
+		}
+		if len(claimedParentIDs) == 0 {
+			return nil
+		}
+
+		return tx.Model(&models.Order{}).
+			Where("parent_id IN ? AND user_id = 0 AND deleted_at IS NULL", claimedParentIDs).
+			Updates(map[string]interface{}{
+				"user_id":        userID,
+				"guest_password": "",
+				"updated_at":     now,
+			}).Error
+	})
+	return claimedParentCount, err
 }
 
 // CountPendingByUserID 统计用户待支付的父订单数量

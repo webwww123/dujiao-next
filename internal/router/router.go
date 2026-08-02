@@ -67,6 +67,13 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 		BlockSeconds:  30,
 		MessageKey:    "error.rate_limited",
 	}
+	guestOrderClaimRule := RateLimitRule{
+		Prefix:        fmt.Sprintf("%s:rate:guest_order_claim", redisPrefix),
+		WindowSeconds: 600,
+		MaxRequests:   5,
+		BlockSeconds:  600,
+		MessageKey:    "error.rate_limited",
+	}
 
 	// 中间件
 	r.Use(gin.Recovery())
@@ -145,6 +152,7 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 			user.POST("/orders/preview", publicHandler.PreviewOrder)
 			user.POST("/order/payment-channels", publicHandler.GetOrderPaymentChannels)
 			user.GET("/orders", publicHandler.ListOrders)
+			user.POST("/orders/claim-guest", RateLimitMiddleware(redisClient, guestOrderClaimRule, KeyByUserIDAndIP), publicHandler.ClaimGuestOrders)
 			user.GET("/orders/:order_no", publicHandler.GetOrderByOrderNo)
 			user.GET("/orders/:order_no/fulfillment/download", publicHandler.DownloadFulfillment)
 			user.POST("/orders/:order_no/cancel", publicHandler.CancelOrder)

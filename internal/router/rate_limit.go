@@ -137,6 +137,15 @@ func KeyByIP(c *gin.Context) string {
 	return c.ClientIP()
 }
 
+// KeyByUserIDAndIP 使用当前用户 ID + IP 作为限流 key。
+func KeyByUserIDAndIP(c *gin.Context) string {
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		return c.ClientIP()
+	}
+	return fmt.Sprintf("%d|%s", userID, c.ClientIP())
+}
+
 // KeyByUpstreamApiKey 使用上游 API Key 作为限流 key
 func KeyByUpstreamApiKey(c *gin.Context) string {
 	apiKey := c.GetHeader("Dujiao-Next-Api-Key")

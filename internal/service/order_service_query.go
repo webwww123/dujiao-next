@@ -153,6 +153,38 @@ func (s *OrderService) ListOrdersByGuest(email, password string, page, pageSize 
 	return orders, total, nil
 }
 
+// ClaimPaidGuestOrders 将当前账号邮箱下、凭原订单密码验证通过的已支付游客订单归属到用户。
+func (s *OrderService) ClaimPaidGuestOrders(userID uint, password string) (int64, error) {
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return 0, ErrGuestPasswordRequired
+	}
+	if userID == 0 || s.userRepo == nil || s.orderRepo == nil {
+		return 0, ErrOrderUpdateFailed
+	}
+
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil || user == nil {
+		return 0, ErrOrderFetchFailed
+	}
+	email, err := normalizeGuestEmail(user.Email)
+	if err != nil {
+		return 0, ErrOrderFetchFailed
+	}
+
+	claimedCount, err := s.orderRepo.ClaimPaidGuestOrders(userID, email, password)
+	if err != nil {
+		return 0, ErrOrderUpdateFailed
+	}
+	if claimedCount > 0 {
+		logger.Infow("guest_orders_claimed",
+			"user_id", userID,
+			"claimed_parent_orders", claimedCount,
+		)
+	}
+	return claimedCount, nil
+}
+
 // ListOrdersForAdmin 管理端订单列表
 func (s *OrderService) ListOrdersForAdmin(filter repository.OrderListFilter) ([]models.Order, int64, error) {
 	orders, total, err := s.orderRepo.ListAdmin(filter)
