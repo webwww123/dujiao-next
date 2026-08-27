@@ -17,6 +17,7 @@ type OrderRepository interface {
 	GetByID(id uint) (*models.Order, error)
 	GetByIDs(ids []uint) ([]models.Order, error)
 	GetByOrderNos(orderNos []string) ([]models.Order, error)
+	GetByOrderNoForInternal(orderNo string) (*models.Order, error)
 	ResolveReceiverEmailByOrderID(orderID uint) (string, error)
 	GetByIDAndUser(id uint, userID uint) (*models.Order, error)
 	GetByOrderNoAndUser(orderNo string, userID uint) (*models.Order, error)
@@ -113,6 +114,25 @@ func (r *GormOrderRepository) GetByOrderNos(orderNos []string) ([]models.Order, 
 		return nil, err
 	}
 	return orders, nil
+}
+
+// GetByOrderNoForInternal 获取内部核验所需的父订单及其商品明细。
+// 该方法不附带用户权限判断，仅供受保护的服务间接口使用。
+func (r *GormOrderRepository) GetByOrderNoForInternal(orderNo string) (*models.Order, error) {
+	orderNo = strings.TrimSpace(orderNo)
+	if orderNo == "" {
+		return nil, nil
+	}
+
+	var order models.Order
+	query := r.withChildren(r.db.Preload("Items").Preload("Fulfillment"))
+	if err := query.Where("order_no = ? AND parent_id IS NULL", orderNo).First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &order, nil
 }
 
 // ResolveReceiverEmailByOrderID 根据订单 ID 解析状态通知的收件邮箱。

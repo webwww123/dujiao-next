@@ -100,6 +100,7 @@ type Container struct {
 	AdProxyService            *service.AdProxyService
 	MediaService              *service.MediaService
 	OrderRiskControlService   *service.OrderRiskControlService
+	LegacyPurchaseService     *service.LegacyPurchaseService
 }
 
 // NewContainer 初始化容器
@@ -316,4 +317,5 @@ func (c *Container) initServices() {
 	c.MediaService = service.NewMediaService(c.MediaRepo)
 	c.ProductMappingService.SetMediaService(c.MediaService)
 	c.AdProxyService = service.NewAdProxyService()
+	c.LegacyPurchaseService = service.NewLegacyPurchaseService(c.OrderRepo, c.ProductRepo)
 }

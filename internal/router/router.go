@@ -197,6 +197,17 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 		// 上游回调接收（本站作为 A 站点，接收 B 的回调）
 		apiV1.POST("/upstream/callback", upstreamHandler.HandleCallback)
 
+		// XiaoEnAI 历史购买核验（仅接受服务间 HMAC 签名请求）
+		internal := apiV1.Group("/internal")
+		internal.POST(
+			"/legacy-purchase/verify",
+			LegacyPurchaseVerifyAuthMiddleware(
+				cfg.Security.LegacyPurchaseVerifySecret,
+				cfg.Security.LegacyPurchaseVerifyMaxSkewSeconds,
+			),
+			publicHandler.VerifyLegacyPurchase,
+		)
+
 		// 渠道 API（Telegram Bot 等外部服务调用）
 		channelAPI := apiV1.Group("/channel")
 		channelAPI.Use(ChannelAPIAuthMiddleware(c))

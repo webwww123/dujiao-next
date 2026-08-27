@@ -103,6 +103,9 @@ cors:
   max_age: 600
 
 security:
+  # XiaoEnAI 历史购买核验接口（与 XiaoEnAI 侧使用同一随机密钥）
+  legacy_purchase_verify_secret: ""
+  legacy_purchase_verify_max_skew_seconds: 300
   login_rate_limit:
     window_seconds: 300
     max_attempts: 5

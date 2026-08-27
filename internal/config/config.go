@@ -237,8 +237,10 @@ func DefaultCORSAllowedHeaders() []string {
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	LoginRateLimit LoginRateLimitConfig `mapstructure:"login_rate_limit"`
-	PasswordPolicy PasswordPolicyConfig `mapstructure:"password_policy"`
+	LoginRateLimit                     LoginRateLimitConfig `mapstructure:"login_rate_limit"`
+	PasswordPolicy                     PasswordPolicyConfig `mapstructure:"password_policy"`
+	LegacyPurchaseVerifySecret         string               `mapstructure:"legacy_purchase_verify_secret"`
+	LegacyPurchaseVerifyMaxSkewSeconds int                  `mapstructure:"legacy_purchase_verify_max_skew_seconds"`
 }
 
 // LoginRateLimitConfig 登录限流配置
@@ -340,6 +342,8 @@ func Load() *Config {
 	viper.SetDefault("security.password_policy.require_lower", true)
 	viper.SetDefault("security.password_policy.require_number", true)
 	viper.SetDefault("security.password_policy.require_special", false)
+	viper.SetDefault("security.legacy_purchase_verify_secret", "")
+	viper.SetDefault("security.legacy_purchase_verify_max_skew_seconds", 300)
 	viper.SetDefault("email.enabled", false)
 	viper.SetDefault("email.host", "")
 	viper.SetDefault("email.port", 587)
