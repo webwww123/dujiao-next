@@ -980,6 +980,44 @@ func (h *Handler) GetGuestOrderByOrderNo(c *gin.Context) {
 	response.Success(c, orderDetail)
 }
 
+// GetGuestCouponHandoff 获取游客已交付优惠券订单的安全串接信息。
+func (h *Handler) GetGuestCouponHandoff(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.Header("Vary", "Cookie")
+	email := strings.TrimSpace(c.Query("email"))
+	password := strings.TrimSpace(c.Query("order_password"))
+	if email == "" {
+		shared.RespondError(c, response.CodeBadRequest, "error.guest_email_required", nil)
+		return
+	}
+	if password == "" {
+		shared.RespondError(c, response.CodeBadRequest, "error.guest_password_required", nil)
+		return
+	}
+
+	orderNo := strings.TrimSpace(c.Param("order_no"))
+	if orderNo == "" {
+		shared.RespondError(c, response.CodeBadRequest, "error.order_item_invalid", nil)
+		return
+	}
+	order, err := h.OrderService.GetOrderByGuestOrderNo(orderNo, email, password)
+	if err != nil {
+		if errors.Is(err, service.ErrGuestOrderNotFound) {
+			shared.RespondError(c, response.CodeNotFound, "error.guest_order_not_found", nil)
+			return
+		}
+		shared.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		return
+	}
+
+	handoff, err := h.OrderService.ResolveCouponHandoff(order)
+	if err != nil {
+		shared.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		return
+	}
+	response.Success(c, handoff)
+}
+
 // DownloadGuestFulfillment 下载订单交付内容（游客）
 // 支持父订单或子订单的 order_no
 func (h *Handler) DownloadGuestFulfillment(c *gin.Context) {

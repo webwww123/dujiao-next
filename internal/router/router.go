@@ -74,6 +74,13 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 		BlockSeconds:  600,
 		MessageKey:    "error.rate_limited",
 	}
+	couponHandoffRule := RateLimitRule{
+		Prefix:        fmt.Sprintf("%s:rate:coupon_handoff", redisPrefix),
+		WindowSeconds: 60,
+		MaxRequests:   60,
+		BlockSeconds:  60,
+		MessageKey:    "error.rate_limited",
+	}
 
 	// 中间件
 	r.Use(gin.Recovery())
@@ -112,6 +119,7 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 			guest.POST("/orders/preview", publicHandler.PreviewGuestOrder)
 			guest.GET("/orders", publicHandler.ListGuestOrders)
 			guest.GET("/orders/:order_no", publicHandler.GetGuestOrderByOrderNo)
+			guest.GET("/orders/:order_no/coupon-handoff", RateLimitMiddleware(redisClient, couponHandoffRule, KeyByIP), publicHandler.GetGuestCouponHandoff)
 			guest.GET("/orders/:order_no/fulfillment/download", publicHandler.DownloadGuestFulfillment)
 			guest.POST("/payments", publicHandler.CreateGuestPayment)
 			guest.POST("/payments/:id/capture", publicHandler.CaptureGuestPayment)
@@ -154,6 +162,7 @@ func SetupRouter(cfg *config.Config, c *provider.Container) *gin.Engine {
 			user.GET("/orders", publicHandler.ListOrders)
 			user.POST("/orders/claim-guest", RateLimitMiddleware(redisClient, guestOrderClaimRule, KeyByUserIDAndIP), publicHandler.ClaimGuestOrders)
 			user.GET("/orders/:order_no", publicHandler.GetOrderByOrderNo)
+			user.GET("/orders/:order_no/coupon-handoff", RateLimitMiddleware(redisClient, couponHandoffRule, KeyByUserIDAndIP), publicHandler.GetCouponHandoff)
 			user.GET("/orders/:order_no/fulfillment/download", publicHandler.DownloadFulfillment)
 			user.POST("/orders/:order_no/cancel", publicHandler.CancelOrder)
 			user.POST("/payments", publicHandler.CreatePayment)

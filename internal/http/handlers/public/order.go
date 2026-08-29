@@ -411,6 +411,40 @@ func (h *Handler) GetOrderByOrderNo(c *gin.Context) {
 	response.Success(c, orderDetail)
 }
 
+// GetCouponHandoff 获取已交付优惠券订单的安全串接信息。
+// 订单归属先由现有详情查询完成，解析失败时只返回状态，不影响原有交付展示。
+func (h *Handler) GetCouponHandoff(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.Header("Vary", "Authorization")
+	uid, ok := shared.GetUserID(c)
+	if !ok {
+		return
+	}
+
+	orderNo := strings.TrimSpace(c.Param("order_no"))
+	if orderNo == "" {
+		shared.RespondError(c, response.CodeBadRequest, "error.order_item_invalid", nil)
+		return
+	}
+
+	order, err := h.OrderService.GetOrderByUserOrderNo(orderNo, uid)
+	if err != nil {
+		if errors.Is(err, service.ErrOrderNotFound) {
+			shared.RespondError(c, response.CodeNotFound, "error.order_not_found", nil)
+			return
+		}
+		shared.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		return
+	}
+
+	handoff, err := h.OrderService.ResolveCouponHandoff(order)
+	if err != nil {
+		shared.RespondError(c, response.CodeInternal, "error.order_fetch_failed", err)
+		return
+	}
+	response.Success(c, handoff)
+}
+
 // CancelOrder 用户取消订单
 func (h *Handler) CancelOrder(c *gin.Context) {
 	uid, ok := shared.GetUserID(c)
