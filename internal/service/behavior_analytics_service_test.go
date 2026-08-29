@@ -148,10 +148,16 @@ func TestBehaviorAnalyticsKeepsDiagnosticDataAndDropsSecrets(t *testing.T) {
 			CouponCode:      "SAVE20",
 			Reason:          "gateway returned a diagnostic error",
 			Properties: models.JSON{
-				"viewport_width": 1280,
-				"raw_error":      "gateway timeout",
-				"password":       "must-not-be-stored",
-				"access_token":   "must-not-be-stored",
+				"viewport_width":            1280,
+				"raw_error":                 "gateway timeout",
+				"experiment_id":             "coupon_handoff_v1",
+				"experiment_variant":        "handoff",
+				"handoff_flow_id":           "flow-1",
+				"handoff_source_order_no":   "SOURCE-1",
+				"handoff_target_product_id": 3,
+				"handoff_target":            true,
+				"password":                  "must-not-be-stored",
+				"access_token":              "must-not-be-stored",
 			},
 			OccurredAt: &occurredAt,
 		}},
@@ -185,5 +191,11 @@ func TestBehaviorAnalyticsKeepsDiagnosticDataAndDropsSecrets(t *testing.T) {
 	}
 	if event.Properties["raw_error"] != "gateway timeout" {
 		t.Fatalf("raw diagnostic error missing: %#v", event.Properties)
+	}
+	if event.Properties["experiment_variant"] != "handoff" ||
+		event.Properties["handoff_flow_id"] != "flow-1" ||
+		event.Properties["handoff_target_product_id"] != float64(3) ||
+		event.Properties["handoff_target"] != true {
+		t.Fatalf("handoff attribution properties missing: %#v", event.Properties)
 	}
 }
