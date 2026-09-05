@@ -23,6 +23,13 @@ const (
 )
 
 var allowedBehaviorEventNames = map[string]struct{}{
+	"product_impression":       {},
+	"quick_buy_click":          {},
+	"quick_buy_close":          {},
+	"checkout_exit":            {},
+	"payment_exit":             {},
+	"checkout_resume":          {},
+	"payment_resume":           {},
 	"page_view":                {},
 	"page_exit":                {},
 	"ui_click":                 {},
@@ -306,6 +313,19 @@ func (s *BehaviorAnalyticsService) RecordBatch(input RecordBehaviorBatchInput) (
 		eventName := normalizeBehaviorEventName(row.EventName)
 		if eventName == "" {
 			continue
+		}
+		if purchaseDiagnosticEvents[eventName] && (eventName != "quick_buy_open" || row.Properties["instrumentation_version"] == "journey_v1") {
+			row.GuestEmail = ""
+			row.CouponCode = ""
+			row.ElementKey = ""
+			row.ElementText = ""
+			row.ElementSelector = ""
+			row.PageURL = purchaseDiagnosticURL(row.PageURL, false)
+			row.Referrer = purchaseDiagnosticURL(row.Referrer, true)
+			if !purchaseDiagnosticReason.MatchString(row.Reason) {
+				row.Reason = ""
+			}
+			row.Properties = sanitizePurchaseDiagnosticProperties(row.Properties)
 		}
 		sessionID := normalizeBehaviorIdentifier(row.SessionID)
 		if sessionID == "" {
