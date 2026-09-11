@@ -33,6 +33,7 @@ var allowedBehaviorEventNames = map[string]struct{}{
 	"page_view":                {},
 	"page_exit":                {},
 	"ui_click":                 {},
+	"sponsor_ad_impression":    {},
 	"scroll_depth":             {},
 	"form_field_focus":         {},
 	"form_field_blur":          {},

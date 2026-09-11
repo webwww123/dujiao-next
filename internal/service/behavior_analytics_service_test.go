@@ -40,6 +40,36 @@ func newBehaviorAnalyticsTestService(t *testing.T) (*BehaviorAnalyticsService, *
 	return service, db
 }
 
+func TestBehaviorAnalyticsAcceptsSponsorImpressionsWithoutChangingPurchaseEvents(t *testing.T) {
+	service, db := newBehaviorAnalyticsTestService(t)
+	now := time.Now().UTC()
+	accepted, err := service.RecordBatch(RecordBehaviorBatchInput{
+		Events: []RecordBehaviorEventInput{
+			{EventID: "sponsor-view-1", VisitorID: "sponsor-visitor", SessionID: "sponsor-session",
+				EventName: "sponsor_ad_impression", ElementKey: "chat_purchase_sponsor_ad", OccurredAt: &now,
+				Properties: models.JSON{"sponsor_id": "wzyp_programming_api", "purchase_route_variant": "dujiao", "access_token": "synthetic"}},
+			{EventID: "sponsor-invalid", VisitorID: "sponsor-visitor", SessionID: "sponsor-session", EventName: "unsupported_ad_event", OccurredAt: &now},
+		},
+	})
+	if err != nil || accepted != 1 {
+		t.Fatalf("record sponsor impression: accepted=%d err=%v", accepted, err)
+	}
+	var events []models.BehaviorEvent
+	if err := db.Find(&events).Error; err != nil || len(events) != 1 {
+		t.Fatalf("stored events: count=%d err=%v", len(events), err)
+	}
+	event := events[0]
+	if event.EventName != "sponsor_ad_impression" || event.ElementKey != "chat_purchase_sponsor_ad" || event.ProductID != 0 || event.OrderNo != "" {
+		t.Fatalf("sponsor event was confused with a purchase: %#v", event)
+	}
+	if event.Properties["sponsor_id"] != "wzyp_programming_api" || event.Properties["purchase_route_variant"] != "dujiao" {
+		t.Fatal("sponsor or experiment attribution missing")
+	}
+	if _, exists := event.Properties["access_token"]; exists {
+		t.Fatal("sensitive property should not be stored")
+	}
+}
+
 func TestBehaviorAnalyticsTracksCouponAbandonmentAndPaidSession(t *testing.T) {
 	service, db := newBehaviorAnalyticsTestService(t)
 	coupon := models.Coupon{
